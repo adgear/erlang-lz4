@@ -7,3 +7,5 @@ Uncompress = lz4:uncompress(Compressed, InputSize).
 Uncompressed = niffy:element(2, Uncompress).
 
 assert:eq(Input, Uncompressed).
+
+Compressed.
