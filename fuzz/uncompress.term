@@ -1,4 +1,0 @@
-InputSize = niffy:byte_size(Input).
-
-_ = niffy:load_nif(lz4, []).
-lz4:uncompress(Input, InputSize).

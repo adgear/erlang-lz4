@@ -1,0 +1,2 @@
+_ = niffy:load_nif(lz4, []).
+lz4:unpack(Input).
