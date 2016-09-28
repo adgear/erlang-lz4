@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include "erl_nif.h"
 #include "lz4.h"
 #include "lz4hc.h"
@@ -7,11 +8,14 @@ static ERL_NIF_TERM nif_compress(ErlNifEnv* env, int argc,
     const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM nif_uncompress(ErlNifEnv* env, int argc,
     const ERL_NIF_TERM argv[]);
+static ERL_NIF_TERM nif_unpack(ErlNifEnv* env, int argc,
+    const ERL_NIF_TERM argv[]);
 
 static ErlNifFunc nif_funcs[] =
 {
     {"compress", 2, nif_compress},
-    {"uncompress", 2, nif_uncompress}
+    {"uncompress", 2, nif_uncompress},
+    {"unpack", 1, nif_unpack}
 };
 
 static ERL_NIF_TERM atom_ok;
@@ -77,6 +81,40 @@ nif_uncompress(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
   int ret_size = LZ4_decompress_safe((char *)src_bin.data,
       (char *)res_bin.data, src_bin.size, res_bin.size);
+  if (ret_size >= 0) {
+    if (ret_size != res_bin.size) {
+      if (!enif_realloc_binary(&res_bin, ret_size))
+        goto error;
+    }
+    ret_term = enif_make_tuple2(env, atom_ok,
+        enif_make_binary(env, &res_bin));
+    enif_release_binary(&res_bin);
+    return ret_term;
+  }
+
+error:
+  enif_release_binary(&res_bin);
+  return enif_make_tuple2(env, atom_error, atom_uncompress_failed);
+}
+
+static ERL_NIF_TERM
+nif_unpack(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
+{
+  ERL_NIF_TERM ret_term;
+  ErlNifBinary src_bin, res_bin;
+  uint32_t res_size;
+
+  if (!enif_inspect_binary(env, argv[0], &src_bin))
+    return 0;
+
+  // XXX
+  res_size = *(uint32_t *)src_bin.data;
+
+  enif_alloc_binary((size_t)res_size, &res_bin);
+
+  // XXX
+  int ret_size = LZ4_decompress_safe((char *)src_bin.data + sizeof(uint32_t),
+      (char *)res_bin.data, src_bin.size - sizeof(uint32_t), res_bin.size);
   if (ret_size >= 0) {
     if (ret_size != res_bin.size) {
       if (!enif_realloc_binary(&res_bin, ret_size))
